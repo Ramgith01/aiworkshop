@@ -1,1 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Café Manager — Live Orders</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --ring: 0 0% 0%; }
+    html, body { height: 100%; }
+    body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
+    /* Simple shimmer for skeletons (not heavily used but handy) */
+    .shimmer { background: linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.12), rgba(0,0,0,0.06)); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  </style>
+</head>
+<body class="bg-stone-50 text-stone-900">
+  <!-- App Wrapper -->
+  <div class="min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-white/60 bg-white/90 border-b border-stone-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-2xl bg-amber-500 flex items-center justify-center shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a1 1 0 0 1 1-1h13a4 4 0 1 1 0 8H4a1 1 0 0 1-1-1V6Zm2 2v2h12a2 2 0 1 0 0-4H5v2Zm-2 9a1 1 0 0 1 1-1h14a3 3 0 0 1 0 6H4a1 1 0 0 1-1-1v-4Zm2 2v2h13a1 1 0 0 0 0-2H5Z"/></svg>
+          </div>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight">Café Manager — Live Orders</h1>
+            <p class="text-sm text-stone-500">Track orders, spot issues, and keep things brewing ☕️</p>
+          </div>
+        </div>
 
+        <!-- Controls -->
+        <div class="ml-auto flex flex-wrap items-center gap-2 sm:gap-3">
+          <button id="addDemoBtn" class="inline-flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6Z"/></svg>
+            Add Demo Order
+          </button>
+          <button id="add5DemoBtn" class="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 border border-emerald-200">
+            +5 Quick
+          </button>
+
+          <div class="flex items-center gap-2 bg-white border border-stone-200 rounded-xl p-2 shadow-sm">
+            <label for="autoRefresh" class="text-xs font-medium text-stone-500">Auto-refresh</label>
+            <select id="autoRefresh" class="text-sm bg-transparent focus:outline-none">
+              <option value="off">Off</option>
+              <option value="5">Every 5s</option>
+              <option value="10">Every 10s</option>
+              <option value="30">Every 30s</option>
+              <option value="60">Every 60s</option>
+            </select>
+          </div>
+
+          <button id="toggleAlertsBtn" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 border border-amber-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10.29 3.86c.86-1.49 2.56-1.49 3.42 0l7.75 13.37c.86 1.49-.22 2.77-1.71 2.77H4.25c-1.49 0-2.57-1.28-1.71-2.77l7.75-13.37Zm1.71 12.39a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5ZM11 9.25c0-.41.34-.75.75-.75s.75.34.75.75V13a.75.75 0 0 1-1.5 0V9.25Z"/></svg>
+            Alerts
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary Bar -->
+      <div id="summaryBar" class="border-t border-stone-200 bg-stone-50/60">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-white border border-stone-200">
+            <span class="text-stone-400 text-xs">Total</span>
+            <span id="sumTotal" class="ml-auto font-bold"></span>
+          </div>
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-white border border-stone-200">
+            <span class="text-stone-400 text-xs">Ready</span>
+            <span id="sumReady" class="ml-auto font-bold text-emerald-700"></span>
+          </div>
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-white border border-stone-200">
+            <span class="text-stone-400 text-xs">Pending</span>
+            <span id="sumPending" class="ml-auto font-bold text-amber-700"></span>
+          </div>
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-white border border-stone-200">
+            <span class="text-stone-400 text-xs">Cancelled</span>
+            <span id="sumCancelled" class="ml-auto font-bold text-rose-700"></span>
+          </div>
+          <div class="hidden lg:flex items-center gap-2 p-2 rounded-lg bg-white border border-stone-200 col-span-2">
+            <span class="text-stone-400 text-xs">Revenue (Today)</span>
+            <span id="sumRevenue" class="ml-auto font-extrabold text-stone-900"></span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- Orders Grid -->
+      <section class="lg:col-span-3">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-lg font-bold">Orders</h2>
+          <div class="text-xs text-stone-500" id="lastUpdated">—</div>
+        </div>
+        <div id="ordersGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- Right Rail: Alerts + Smart Assistant -->
+      <aside class="lg:col-span-1 space-y-6">
+        <!-- Alerts Panel -->
+        <div id="alertsPanel" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div class="flex items-center gap-2 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600" viewBox="0 0 24 24" fill="currentColor"><path d="M10.29 3.86c.86-1.49 2.56-1.49 3.42 0l7.75 13.37c.86 1.49-.22 2.77-1.71 2.77H4.25c-1.49 0-2.57-1.28-1.71-2.77l7.75-13.37Zm1.71 12.39a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5ZM11 9.25c0-.41.34-.75.75-.75s.75.34.75.75V13a.75.75 0 0 1-1.5 0V9.25Z"/></svg>
+            <h3 class="font-semibold text-amber-900">Alerts</h3>
+            <span id="alertsCount" class="ml-auto text-xs bg-amber-600 text-white font-semibold px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <ul id="alertsList" class="space-y-2 text-sm"></ul>
+        </div>
+
+        <!-- Smart Assistant -->
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <div class="flex items-center gap-2 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-5.75 11.06l.16.23-.94 3.3a1 1 0 0 0 1.24 1.24l3.3-.94.23.16A7 7 0 1 0 12 2Zm-3 7a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0V9Zm4-1a1 1 0 0 1 2 0v5a1 1 0 1 1-2 0V8Z"/></svg>
+            <h3 class="font-semibold text-emerald-900">Smart Assistant</h3>
+          </div>
+          <div id="assistantSuggestions" class="space-y-2 text-sm"></div>
+          <div class="mt-3 flex gap-2">
+            <button id="refreshSuggestions" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">Refresh Suggestions</button>
+            <button id="simulateRushBtn" class="px-3 py-2 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-semibold border border-emerald-200">Simulate Rush (x3)</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-stone-200 py-4 text-center text-xs text-stone-500">
+      Built with ❤️ — Single-file demo. No backend required.
+    </footer>
+  </div>
+
+  <script>
+    // ---------- Data & Utilities ----------
+    const STATUS = { WAITING: 'waiting', IN_PROGRESS: 'in progress', READY: 'ready', CANCELLED: 'cancelled' };
+
+    const MENU = {
+      drinks: [
+        { name: 'Espresso', price: 3.0 },
+        { name: 'Americano', price: 3.5 },
+        { name: 'Latte', price: 4.5 },
+        { name: 'Cappuccino', price: 4.5 },
+        { name: 'Mocha', price: 5.0 },
+        { name: 'Flat White', price: 4.0 },
+        { name: 'Cold Brew', price: 4.5 },
+        { name: 'Iced Latte', price: 4.8 }
+      ],
+      pastries: [
+        { name: 'Croissant', price: 3.0 },
+        { name: 'Chocolate Croissant', price: 3.5 },
+        { name: 'Blueberry Muffin', price: 2.8 },
+        { name: 'Cinnamon Roll', price: 3.2 },
+        { name: 'Banana Bread', price: 2.9 }
+      ],
+      snacks: [
+        { name: 'Bagel', price: 2.2 },
+        { name: 'Granola Bar', price: 1.8 },
+        { name: 'Yogurt Parfait', price: 4.0 },
+        { name: 'Fruit Cup', price: 3.0 }
+      ]
+    };
+
+    const PAYMENT_METHODS = ['cash', 'card', 'UPI', 'wallet'];
+
+    const state = {
+      orders: [],
+      autoRefresh: 'off',
+      intervalId: null
+    };
+
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    const fmtCurrency = (n) => n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+    const since = (d) => {
+      const ms = Date.now() - new Date(d).getTime();
+      const m = Math.floor(ms / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return `${m} min ago`;
+      const h = Math.floor(m / 60);
+      const rem = m % 60;
+      return `${h}h ${rem}m ago`;
+    };
+
+    const randomFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    const computeTotal = (order) => order.items.reduce((acc, it) => acc + it.price * it.qty, 0);
+
+    // ---------- Demo Order Generation ----------
+    const FIRST_NAMES = ['Alex','Jamie','Sam','Riley','Jordan','Taylor','Morgan','Avery','Casey','Drew','Chris','Pat','Cameron','Deepti','Rahul','Priya','Anya','Rohan'];
+
+    function makeDemoOrder() {
+      const items = [];
+      const nDrinks = randInt(1, 3);
+      const nPastries = Math.random() < 0.6 ? randInt(0, 2) : 0;
+      const nSnacks = Math.random() < 0.35 ? 1 : 0;
+
+      for (let i = 0; i < nDrinks; i++) {
+        const base = randomFrom(MENU.drinks);
+        items.push({ name: base.name, price: base.price, qty: randInt(1, 2), category: 'drink' });
+      }
+      for (let i = 0; i < nPastries; i++) {
+        const base = randomFrom(MENU.pastries);
+        items.push({ name: base.name, price: base.price, qty: randInt(1, 3), category: 'pastry' });
+      }
+      for (let i = 0; i < nSnacks; i++) {
+        const base = randomFrom(MENU.snacks);
+        items.push({ name: base.name, price: base.price, qty: 1, category: 'snack' });
+      }
+
+      const createdAt = new Date(Date.now() - randInt(0, 12) * 60 * 1000); // up to 12 min ago
+      const status = Math.random() < 0.7 ? STATUS.WAITING : STATUS.IN_PROGRESS;
+
+      const order = {
+        id: Math.random().toString(36).slice(2, 9),
+        customerName: randomFrom(FIRST_NAMES),
+        items,
+        status,
+        paymentMethod: randomFrom(PAYMENT_METHODS),
+        createdAt: createdAt.toISOString(),
+        cancelled: false
+      };
+      order.total = +computeTotal(order).toFixed(2);
+      return order;
+    }
+
+    // ---------- Rendering ----------
+    function render() {
+      renderOrders();
+      renderSummary();
+      renderAlerts();
+      renderAssistant();
+      $('#lastUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+    }
+
+    function statusBadge(status) {
+      const map = {
+        [STATUS.WAITING]: 'bg-amber-100 text-amber-800 border border-amber-200',
+        [STATUS.IN_PROGRESS]: 'bg-blue-100 text-blue-800 border border-blue-200',
+        [STATUS.READY]: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+        [STATUS.CANCELLED]: 'bg-rose-100 text-rose-800 border border-rose-200'
+      };
+      return `<span class="text-xs font-semibold px-2 py-1 rounded-full ${map[status]}">${status}</span>`;
+    }
+
+    function renderOrders() {
+      const container = $('#ordersGrid');
+      container.innerHTML = '';
+      const sorted = [...state.orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      if (sorted.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center text-stone-500 py-12 border border-dashed rounded-2xl">No orders yet. Click <span class="font-semibold">Add Demo Order</span> to get started.</div>
+        `;
+        return;
+      }
+
+      for (const o of sorted) {
+        const itemsList = o.items.map(it => `<li class="flex justify-between"><span>${it.qty}× ${it.name}</span><span class="text-stone-500">${fmtCurrency(it.price*it.qty)}</span></li>`).join('');
+
+        const controls = o.cancelled || o.status === STATUS.READY
+          ? `<div class="text-xs text-stone-400">No actions available</div>`
+          : `
+            <div class="flex flex-wrap gap-2">
+              ${o.status !== STATUS.IN_PROGRESS && !o.cancelled ? `<button data-action="start" data-id="${o.id}" class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">Start</button>` : ''}
+              ${o.status !== STATUS.READY && !o.cancelled ? `<button data-action="ready" data-id="${o.id}" class="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">Mark Ready</button>` : ''}
+              ${!o.cancelled && o.status !== STATUS.READY ? `<button data-action="cancel" data-id="${o.id}" class="px-3 py-1.5 text-xs rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700">Cancel</button>` : ''}
+            </div>
+          `;
+
+        const cancelledRibbon = o.cancelled ? `<div class="absolute -rotate-12 -left-8 top-4 bg-rose-600 text-white text-[10px] px-8 py-1 shadow rounded">CANCELLED</div>` : '';
+
+        const card = document.createElement('div');
+        card.className = 'relative rounded-2xl border border-stone-200 bg-white p-4 shadow-sm hover:shadow transition-shadow';
+        card.innerHTML = `
+          ${cancelledRibbon}
+          <div class="flex items-start gap-2">
+            <div class="h-10 w-10 rounded-xl bg-stone-100 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-stone-600" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5a1 1 0 0 1 1-1h10a3 3 0 1 1 0 6H7a1 1 0 0 1-1-1V5Zm2 1v2h9a1 1 0 1 0 0-2H8Zm-2 8a1 1 0 0 1 1-1h11a2 2 0 1 1 0 4H7a1 1 0 0 1-1-1v-2Zm2 1v2h10a1 1 0 1 0 0-2H8Z"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <h4 class="font-bold truncate">${o.customerName}</h4>
+                ${statusBadge(o.cancelled ? STATUS.CANCELLED : o.status)}
+                <span class="ml-auto text-xs text-stone-500" title="${new Date(o.createdAt).toLocaleString()}">${since(o.createdAt)}</span>
+              </div>
+              <ul class="mt-2 text-sm space-y-1">${itemsList}</ul>
+              <div class="mt-3 flex items-center gap-2 text-sm">
+                <span class="font-semibold">Total:</span> <span>${fmtCurrency(o.total)}</span>
+                <span class="ml-auto text-stone-500">Payment: <span class="font-medium text-stone-700">${o.paymentMethod}</span></span>
+              </div>
+              <div class="mt-3">${controls}</div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+
+      // Wire up card action buttons
+      container.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.currentTarget.getAttribute('data-id');
+          const action = e.currentTarget.getAttribute('data-action');
+          const order = state.orders.find(o => o.id === id);
+          if (!order) return;
+          if (action === 'start') order.status = STATUS.IN_PROGRESS;
+          if (action === 'ready') order.status = STATUS.READY;
+          if (action === 'cancel') { order.cancelled = true; }
+          render();
+        });
+      });
+    }
+
+    function renderSummary() {
+      const total = state.orders.length;
+      const ready = state.orders.filter(o => o.status === STATUS.READY && !o.cancelled).length;
+      const cancelled = state.orders.filter(o => o.cancelled).length;
+      const pending = total - ready - cancelled;
+      const revenue = state.orders.filter(o => !o.cancelled).reduce((acc, o) => acc + (o.status === STATUS.READY ? o.total : 0), 0);
+
+      $('#sumTotal').textContent = total;
+      $('#sumReady').textContent = ready;
+      $('#sumPending').textContent = pending;
+      $('#sumCancelled').textContent = cancelled;
+      $('#sumRevenue').textContent = fmtCurrency(revenue);
+    }
+
+    function renderAlerts() {
+      const list = $('#alertsList');
+      list.innerHTML = '';
+
+      const alerts = [];
+      const now = Date.now();
+
+      for (const o of state.orders) {
+        const ageMin = Math.floor((now - new Date(o.createdAt).getTime()) / 60000);
+        const totalQty = o.items.reduce((a, it) => a + it.qty, 0);
+        if (!o.cancelled && (o.status === STATUS.WAITING || o.status === STATUS.IN_PROGRESS) && ageMin > 10) {
+          alerts.push({ type: 'long-wait', msg: `Order ${o.id} (${o.customerName}) is waiting ${ageMin} min.` });
+        }
+        if (!o.cancelled && totalQty >= 6) {
+          alerts.push({ type: 'large-group', msg: `Large group order ${o.id} — ${totalQty} items.` });
+        }
+        if (o.cancelled) {
+          alerts.push({ type: 'cancelled', msg: `Order ${o.id} was cancelled.` });
+        }
+      }
+
+      $('#alertsCount').textContent = alerts.length;
+
+      if (alerts.length === 0) {
+        list.innerHTML = `<li class="text-stone-600">All clear. No alerts right now.</li>`;
+        return;
+      }
+
+      for (const a of alerts) {
+        const color = a.type === 'long-wait' ? 'bg-amber-100 text-amber-900 border-amber-200' : a.type === 'large-group' ? 'bg-blue-100 text-blue-900 border-blue-200' : 'bg-rose-100 text-rose-900 border-rose-200';
+        const li = document.createElement('li');
+        li.className = `p-2 rounded-lg border ${color}`;
+        li.textContent = a.msg;
+        list.appendChild(li);
+      }
+    }
+
+    function renderAssistant() {
+      const el = $('#assistantSuggestions');
+      el.innerHTML = '';
+
+      const suggestions = getSuggestions();
+      if (suggestions.length === 0) {
+        el.innerHTML = `<div class="text-stone-600">No suggestions right now. Keep up the good work! 🎉</div>`;
+        return;
+      }
+
+      for (const s of suggestions) {
+        const div = document.createElement('div');
+        div.className = 'p-2 bg-white border border-emerald-200 rounded-lg';
+        div.textContent = s;
+        el.appendChild(div);
+      }
+    }
+
+    function getSuggestions() {
+      const out = [];
+      const queue = state.orders.filter(o => !o.cancelled && (o.status === STATUS.WAITING || o.status === STATUS.IN_PROGRESS));
+      const ready = state.orders.filter(o => !o.cancelled && o.status === STATUS.READY);
+
+      // If queue heavy
+      if (queue.length >= 8) out.push(`Heavy queue (${queue.length}). Consider pre-batching espresso shots and assigning a runner.`);
+      else if (queue.length >= 5) out.push(`Queue has ${queue.length} orders. Consider bringing an extra barista to the machine.`);
+
+      // Popular items trend
+      const counts = {};
+      for (const o of queue) {
+        for (const it of o.items) counts[it.name] = (counts[it.name] || 0) + it.qty;
+      }
+      const top = Object.entries(counts).sort((a,b) => b[1]-a[1])[0];
+      if (top && top[1] >= 4) out.push(`Consider prepping more ${top[0]} — ${top[1]} in active queue.`);
+
+      // Pastry stock nudge
+      const pastryCount = Object.entries(counts).filter(([k]) => MENU.pastries.some(p=>p.name===k)).reduce((a, [,v]) => a+v, 0);
+      if (pastryCount >= 6) out.push(`High pastry demand (${pastryCount}). Pre-bake croissants & muffins.`);
+
+      // Slow orders
+      const slow = queue.filter(o => (Date.now()-new Date(o.createdAt).getTime())/60000 > 12);
+      if (slow.length >= 2) out.push(`${slow.length} orders waiting >12 min. Reprioritize oldest tickets.`);
+
+      // Sales pace
+      const revenue = ready.reduce((a,o)=>a+o.total,0);
+      if (revenue >= 150) out.push(`Great pace: ${fmtCurrency(revenue)} revenue so far. Keep momentum!`);
+
+      return out;
+    }
+
+    // ---------- Auto Refresh Logic ----------
+    function setAutoRefresh(value) {
+      state.autoRefresh = value;
+      if (state.intervalId) { clearInterval(state.intervalId); state.intervalId = null; }
+      if (value !== 'off') {
+        const ms = parseInt(value, 10) * 1000;
+        state.intervalId = setInterval(() => {
+          progressTick();
+          render();
+        }, ms);
+      }
+    }
+
+    // Simulate progress movement probabilistically
+    function progressTick() {
+      for (const o of state.orders) {
+        if (o.cancelled || o.status === STATUS.READY) continue;
+        const ageMin = (Date.now() - new Date(o.createdAt).getTime())/60000;
+        const base = o.status === STATUS.WAITING ? 0.25 : 0.35; // base chance to move forward each tick
+        const ageBonus = Math.min(0.3, ageMin/50); // older orders get small bonus
+        const p = base + ageBonus;
+        if (Math.random() < p) {
+          if (o.status === STATUS.WAITING) o.status = STATUS.IN_PROGRESS;
+          else if (o.status === STATUS.IN_PROGRESS) o.status = STATUS.READY;
+        }
+      }
+    }
+
+    // ---------- Event Wiring ----------
+    $('#addDemoBtn').addEventListener('click', () => { state.orders.push(makeDemoOrder()); render(); });
+    $('#add5DemoBtn').addEventListener('click', () => { for (let i=0;i<5;i++) state.orders.push(makeDemoOrder()); render(); });
+
+    $('#autoRefresh').addEventListener('change', (e) => setAutoRefresh(e.target.value));
+    $('#toggleAlertsBtn').addEventListener('click', () => {
+      $('#alertsPanel').classList.toggle('hidden');
+    });
+
+    $('#refreshSuggestions').addEventListener('click', () => renderAssistant());
+    $('#simulateRushBtn').addEventListener('click', () => {
+      // Add 3x more orders quickly
+      for (let i=0;i<3;i++) state.orders.push(makeDemoOrder());
+      render();
+    });
+
+    // Seed with some orders
+    for (let i=0;i<4;i++) state.orders.push(makeDemoOrder());
+    render();
+  </script>
+</body>
+</html>
